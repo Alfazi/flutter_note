@@ -3,7 +3,9 @@ import 'package:flutter_note/db_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 
 class NoteEditorPage extends StatefulWidget {
-  const NoteEditorPage({Key? key}) : super(key: key);
+  final NoteModel? note;
+
+  const NoteEditorPage({Key? key, this.note}) : super(key: key);
 
   @override
   State<NoteEditorPage> createState() => _NoteEditorPageState();
@@ -15,6 +17,15 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.note != null) {
+      _titleController.text = widget.note!.title;
+      _contentController.text = widget.note!.content;
+    }
+  }
 
   @override
   void dispose() {
@@ -29,27 +40,41 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       final title = _titleController.text;
       final content = _contentController.text;
 
-      final result = dbHelper.insertItem(
-        NoteModel(
-          noteId: null,
-          title: title,
-          content: content,
-          createdAt: DateTime.now().toIso8601String(),
-          updatedAt: DateTime.now().toIso8601String(),
-          pinned: false,
-        ),
-      );
+      int result;
 
-      // TODO: Save the note to database or storage
-      print(
-        'Saving note - Title: $title, Content: $content, Id: ${await result}',
-      );
+      if (widget.note == null) {
+        result = await dbHelper.insertItem(
+          NoteModel(
+            noteId: null,
+            title: title,
+            content: content,
+            createdAt: DateTime.now().toIso8601String(),
+            updatedAt: DateTime.now().toIso8601String(),
+            pinned: false,
+          ),
+        );
+      } else {
+        result = await dbHelper.updateItem(
+          NoteModel(
+            noteId: widget.note!.noteId,
+            title: title,
+            content: content,
+            createdAt: widget.note!.createdAt,
+            updatedAt: DateTime.now().toIso8601String(),
+            pinned: widget.note!.pinned,
+          ),
+        );
+      }
 
       // Show success message
-      if (await result > 0) {
+      if (result > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Note saved successfully!'),
+          SnackBar(
+            content: Text(
+              widget.note == null
+                  ? 'Note saved successfully!'
+                  : 'Note updated successfully!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -94,7 +119,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New Note'), elevation: 0),
+      appBar: AppBar(
+        title: Text(widget.note == null ? 'New Note' : 'Edit Note'),
+        elevation: 0,
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(

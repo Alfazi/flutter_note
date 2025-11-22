@@ -38,6 +38,8 @@ dependencies:
   
   sqflite_common_ffi: ^2.3.6
   sqflite_common_ffi_web: ^1.0.1+2
+  firebase_core: ^4.2.1
+  cloud_firestore: ^6.1.0
 
 dev_dependencies:
   flutter_test:

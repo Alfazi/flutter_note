@@ -46,20 +46,18 @@ class _NoteListPageState extends State<NoteHomePage> {
 
   void _navigateToEditNote(NoteModel note) async {
     // Navigate to edit note page
-    // final result = await Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => NoteEditorPage(note: note),
-    //   ),
-    // );
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => NoteEditorPage(note: note)),
+    );
 
     // Reload notes after returning from edit page
-    // if (result != null) {
-    //   _loadNotes();
-    // }
+    if (result != null) {
+      _loadNotes();
+    }
   }
 
-  void _deleteNote(int noteId) {
+  void _deleteNote(int noteId) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -71,15 +69,23 @@ class _NoteListPageState extends State<NoteHomePage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              // TODO: Delete from database
-              // setState(() {
-              //   //_notes.removeWhere((note) => note.id == noteId);
-              // });
+            onPressed: () async {
+              final result = await dbHelper.deleteItem(noteId);
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Note deleted')));
+
+              if (result > 0) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Note deleted')));
+                _loadNotes();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to delete note'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),

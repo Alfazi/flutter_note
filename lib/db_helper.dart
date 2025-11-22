@@ -69,4 +69,27 @@ class DbHelper {
       return NoteModel.fromJson(maps[i]);
     });
   }
+
+  Future<int> updateItem(NoteModel note) async {
+    final db = await database;
+    final data = note.toJson();
+
+    final result = await db.update(
+      _tableName,
+      data,
+      where: "note_id = ?",
+      whereArgs: [note.noteId],
+    );
+    return result;
+  }
+
+  Future<int> deleteItem(int noteId) async {
+    final db = await database;
+    final result = await db.delete(
+      _tableName,
+      where: "note_id = ?",
+      whereArgs: [noteId],
+    );
+    return result;
+  }
 }
