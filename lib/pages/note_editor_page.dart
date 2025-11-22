@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_note/db_helper.dart';
+import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 
 class NoteEditorPage extends StatefulWidget {
@@ -12,11 +12,12 @@ class NoteEditorPage extends StatefulWidget {
 }
 
 class _NoteEditorPageState extends State<NoteEditorPage> {
-  final DbHelper dbHelper = DbHelper.instance;
+  final FirestoreHelper firestoreHelper = FirestoreHelper();
 
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -36,52 +37,76 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   Future _saveNote() async {
     if (_formKey.currentState!.validate()) {
-      // Get the note data
+      setState(() {
+        _isSaving = true;
+      });
+
       final title = _titleController.text;
       final content = _contentController.text;
 
-      int result;
-
-      if (widget.note == null) {
-        result = await dbHelper.insertItem(
-          NoteModel(
+      try {
+        if (widget.note == null) {
+          // Create new note
+          final newNote = NoteModel(
             noteId: null,
             title: title,
             content: content,
             createdAt: DateTime.now().toIso8601String(),
             updatedAt: DateTime.now().toIso8601String(),
             pinned: false,
-          ),
-        );
-      } else {
-        result = await dbHelper.updateItem(
-          NoteModel(
+          );
+
+          await firestoreHelper.addNote(newNote);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Note saved successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          // Update existing note
+          final updatedNote = NoteModel(
             noteId: widget.note!.noteId,
             title: title,
             content: content,
             createdAt: widget.note!.createdAt,
             updatedAt: DateTime.now().toIso8601String(),
             pinned: widget.note!.pinned,
-          ),
-        );
-      }
+          );
 
-      // Show success message
-      if (result > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.note == null
-                  ? 'Note saved successfully!'
-                  : 'Note updated successfully!',
+          await firestoreHelper.updateNote(updatedNote);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Note updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+
+        // Navigate back
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving note: $e'),
+              backgroundColor: Colors.red,
             ),
-            backgroundColor: Colors.green,
-          ),
-        );
+          );
+        }
       }
-
-      // Navigate back
-      Navigator.pop(context, result);
     }
   }
 
@@ -180,7 +205,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   // Cancel button
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _cancelNote,
+                      onPressed: _isSaving ? null : _cancelNote,
                       icon: const Icon(Icons.cancel),
                       label: const Text('Cancel'),
                       style: OutlinedButton.styleFrom(
@@ -193,9 +218,18 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   // Save button
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _saveNote,
-                      icon: const Icon(Icons.save),
-                      label: const Text('Save'),
+                      onPressed: _isSaving ? null : _saveNote,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(_isSaving ? 'Saving...' : 'Save'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),

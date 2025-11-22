@@ -9,7 +9,7 @@ NoteModel noteModelFromJson(String str) => NoteModel.fromJson(json.decode(str));
 String noteModelToJson(NoteModel data) => json.encode(data.toJson());
 
 class NoteModel {
-  dynamic noteId;
+  String? noteId; // Changed to String for Firestore document ID
   String title;
   String content;
   String createdAt;
@@ -17,7 +17,7 @@ class NoteModel {
   bool pinned;
 
   NoteModel({
-    required this.noteId,
+    this.noteId,
     required this.title,
     required this.content,
     required this.createdAt,
@@ -31,22 +31,37 @@ class NoteModel {
 
     if (pinnedFromJson is int) {
       pinnedValue = pinnedFromJson == 1;
+    } else if (pinnedFromJson is bool) {
+      pinnedValue = pinnedFromJson;
     } else {
       pinnedValue = false;
     }
 
     return NoteModel(
       noteId: json["note_id"],
-      title: json["title"],
-      content: json["content"],
-      createdAt: json["created_at"],
-      updatedAt: json["updated_at"],
+      title: json["title"] ?? '',
+      content: json["content"] ?? '',
+      createdAt: json["created_at"] ?? DateTime.now().toIso8601String(),
+      updatedAt: json["updated_at"] ?? DateTime.now().toIso8601String(),
       pinned: pinnedValue,
     );
   }
 
+  // For Firestore - doesn't convert pinned to int
   Map<String, dynamic> toJson() {
-    final pinnedConverted = this.pinned ? 1 : 0;
+    return {
+      "note_id": noteId,
+      "title": title,
+      "content": content,
+      "created_at": createdAt,
+      "updated_at": updatedAt,
+      "pinned": pinned,
+    };
+  }
+
+  // For SQLite - converts pinned to int
+  Map<String, dynamic> toJsonSQLite() {
+    final pinnedConverted = pinned ? 1 : 0;
 
     return {
       "note_id": noteId,
