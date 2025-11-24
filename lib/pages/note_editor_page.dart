@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_note/auth_helper.dart';
 import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 
@@ -13,15 +15,18 @@ class NoteEditorPage extends StatefulWidget {
 
 class _NoteEditorPageState extends State<NoteEditorPage> {
   final FirestoreHelper firestoreHelper = FirestoreHelper();
+  final AuthHelper authHelper = AuthHelper();
 
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   bool _isSaving = false;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _currentUser = authHelper.firebaseAuth.currentUser;
     if (widget.note != null) {
       _titleController.text = widget.note!.title;
       _contentController.text = widget.note!.content;
@@ -37,6 +42,16 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   Future _saveNote() async {
     if (_formKey.currentState!.validate()) {
+      if (_currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not authenticated'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isSaving = true;
       });
@@ -49,6 +64,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           // Create new note
           final newNote = NoteModel(
             noteId: null,
+            userId: _currentUser!.uid,
             title: title,
             content: content,
             createdAt: DateTime.now().toIso8601String(),
@@ -70,6 +86,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           // Update existing note
           final updatedNote = NoteModel(
             noteId: widget.note!.noteId,
+            userId: widget.note!.userId,
             title: title,
             content: content,
             createdAt: widget.note!.createdAt,

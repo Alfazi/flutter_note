@@ -10,6 +10,7 @@ String noteModelToJson(NoteModel data) => json.encode(data.toJson());
 
 class NoteModel {
   String? noteId; // Changed to String for Firestore document ID
+  String? userId; // User ID for associating notes with users
   String title;
   String content;
   String createdAt;
@@ -18,6 +19,7 @@ class NoteModel {
 
   NoteModel({
     this.noteId,
+    this.userId,
     required this.title,
     required this.content,
     required this.createdAt,
@@ -39,6 +41,7 @@ class NoteModel {
 
     return NoteModel(
       noteId: json["note_id"],
+      userId: json["user_id"],
       title: json["title"] ?? '',
       content: json["content"] ?? '',
       createdAt: json["created_at"] ?? DateTime.now().toIso8601String(),
@@ -51,6 +54,7 @@ class NoteModel {
   Map<String, dynamic> toJson() {
     return {
       "note_id": noteId,
+      "user_id": userId,
       "title": title,
       "content": content,
       "created_at": createdAt,
@@ -65,6 +69,7 @@ class NoteModel {
 
     return {
       "note_id": noteId,
+      "user_id": userId,
       "title": title,
       "content": content,
       "created_at": createdAt,

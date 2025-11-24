@@ -24,18 +24,26 @@ class FirestoreHelper {
     }
   }
 
-  // READ - Get all notes
-  Future<List<NoteModel>> getAllNotes() async {
+  // READ - Get all notes for a specific user
+  Future<List<NoteModel>> getAllNotes(String userId) async {
     try {
+      print('Fetching notes for user: $userId');
       final dataSnapshot = await noteRef
-          .orderBy('created_at', descending: true)
+          .where('user_id', isEqualTo: userId)
           .get();
 
-      return dataSnapshot.docs.map((doc) {
+      print('Found ${dataSnapshot.docs.length} notes');
+
+      // Sort manually by created_at
+      final notes = dataSnapshot.docs.map((doc) {
         final noteData = doc.data();
         noteData.noteId = doc.id;
         return noteData;
       }).toList();
+
+      notes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return notes;
     } catch (e) {
       print('Error getting notes: $e');
       return [];
@@ -81,16 +89,21 @@ class FirestoreHelper {
     }
   }
 
-  // STREAM - Listen to real-time updates
-  Stream<List<NoteModel>> getNoteStream() {
-    return noteRef.orderBy('created_at', descending: true).snapshots().map((
+  // STREAM - Listen to real-time updates for a specific user
+  Stream<List<NoteModel>> getNoteStream(String userId) {
+    return noteRef.where('user_id', isEqualTo: userId).snapshots().map((
       snapshot,
     ) {
-      return snapshot.docs.map((doc) {
+      final notes = snapshot.docs.map((doc) {
         final noteData = doc.data();
         noteData.noteId = doc.id;
         return noteData;
       }).toList();
+
+      // Sort manually by created_at
+      notes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return notes;
     });
   }
 
@@ -107,19 +120,24 @@ class FirestoreHelper {
     }
   }
 
-  // Get pinned notes
-  Future<List<NoteModel>> getPinnedNotes() async {
+  // Get pinned notes for a specific user
+  Future<List<NoteModel>> getPinnedNotes(String userId) async {
     try {
       final dataSnapshot = await noteRef
+          .where('user_id', isEqualTo: userId)
           .where('pinned', isEqualTo: true)
-          .orderBy('created_at', descending: true)
           .get();
 
-      return dataSnapshot.docs.map((doc) {
+      final notes = dataSnapshot.docs.map((doc) {
         final noteData = doc.data();
         noteData.noteId = doc.id;
         return noteData;
       }).toList();
+
+      // Sort manually by created_at
+      notes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return notes;
     } catch (e) {
       print('Error getting pinned notes: $e');
       return [];

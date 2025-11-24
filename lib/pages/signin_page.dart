@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_note/auth_helper.dart';
+import 'package:flutter_note/firestore_user_helper.dart';
+import 'package:flutter_note/models/user_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class SigninPage extends StatefulWidget {
@@ -12,6 +14,7 @@ class SigninPage extends StatefulWidget {
 
 class _SigninPageState extends State<SigninPage> {
   final AuthHelper authHelper = AuthHelper();
+  final firestoreUserHelper = FirestoreUserHelper();
   TextEditingController emailController = TextEditingController();
   TextEditingController psswdController = TextEditingController();
 
@@ -135,14 +138,25 @@ class _SigninPageState extends State<SigninPage> {
         psswdController.text,
       );
 
+      // Create user document in Firestore if it doesn't exist
+      if (result.user != null) {
+        final userModel = UserModel(
+          userId: result.user!.uid,
+          userName:
+              result.user!.displayName ?? emailController.text.split('@')[0],
+          userEmail: result.user!.email ?? emailController.text,
+        );
+        await firestoreUserHelper.addUser(userModel);
+      }
+
       if (mounted) {
         _showSnackbar('Signin success as ${result.user?.email}');
-        //Navigator.pushNamed(context, NavigationRoutes.movieList.name);
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
       _showSnackbar('Signin fail: ${e.message}');
     } catch (e) {
-      _showSnackbar('Signin fail');
+      _showSnackbar('Signin fail: $e');
     }
 
     emailController.clear();
@@ -153,10 +167,21 @@ class _SigninPageState extends State<SigninPage> {
     try {
       final result = await authHelper.signInWithGoogle();
 
-      if (result != null) {
+      if (result != null && result.user != null) {
+        // Create user document in Firestore if new user
+        final userModel = UserModel(
+          userId: result.user!.uid,
+          userName:
+              result.user!.displayName ??
+              result.user!.email?.split('@')[0] ??
+              'User',
+          userEmail: result.user!.email ?? '',
+        );
+        await firestoreUserHelper.addUser(userModel);
+
         if (mounted) {
           _showSnackbar('Signin success as ${result.user?.email}');
-          //Navigator.pushNamed(context, NavigationRoutes.movieList.name);
+          Navigator.pushReplacementNamed(context, '/home');
         }
       }
     } on FirebaseAuthException catch (e) {

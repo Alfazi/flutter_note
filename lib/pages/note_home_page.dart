@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_note/auth_helper.dart';
 import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 import 'package:flutter_note/pages/note_editor_page.dart';
@@ -12,23 +14,28 @@ class NoteHomePage extends StatefulWidget {
 
 class _NoteListPageState extends State<NoteHomePage> {
   final FirestoreHelper firestoreHelper = FirestoreHelper();
+  final AuthHelper authHelper = AuthHelper();
 
   List<NoteModel> _notes = [];
   bool _isLoading = false;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _currentUser = authHelper.firebaseAuth.currentUser;
     _loadNotes();
   }
 
   Future<void> _loadNotes() async {
+    if (_currentUser == null) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final noteList = await firestoreHelper.getAllNotes();
+      final noteList = await firestoreHelper.getAllNotes(_currentUser!.uid);
       setState(() {
         _notes = noteList;
         _isLoading = false;
@@ -149,7 +156,36 @@ class _NoteListPageState extends State<NoteHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Notes'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('My Notes'),
+        elevation: 0,
+        actions: [
+          // User email display
+          if (_currentUser != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  _currentUser!.email ?? 'User',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          // Sign out button
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign Out',
+            onPressed: () async {
+              await authHelper.signOutWithGoogle();
+              if (mounted) {
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/signin', (route) => false);
+              }
+            },
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
