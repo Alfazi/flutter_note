@@ -72,4 +72,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'flutter-note-2feb3.firebasestorage.app',
     iosBundleId: 'com.example.flutterNote',
   );
+
 }

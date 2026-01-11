@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_note/db_helper.dart';
+import 'package:flutter_note/auth_helper.dart';
+import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 import 'package:flutter_note/pages/note_editor_page.dart';
 
@@ -11,24 +13,46 @@ class NoteHomePage extends StatefulWidget {
 }
 
 class _NoteListPageState extends State<NoteHomePage> {
-  final DbHelper dbHelper = DbHelper.instance;
+  final FirestoreHelper firestoreHelper = FirestoreHelper();
+  final AuthHelper authHelper = AuthHelper();
 
   List<NoteModel> _notes = [];
+  bool _isLoading = false;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _currentUser = authHelper.firebaseAuth.currentUser;
     _loadNotes();
   }
 
   Future<void> _loadNotes() async {
-    // TODO: Load notes from database
-    // Simulating database with sample data
-    final noteList = await dbHelper.fetchNotes();
+    if (_currentUser == null) return;
 
     setState(() {
-      _notes = noteList;
+      _isLoading = true;
     });
+
+    try {
+      final noteList = await firestoreHelper.getAllNotes(_currentUser!.uid);
+      setState(() {
+        _notes = noteList;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading notes: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _navigateToCreateNote() async {
@@ -57,7 +81,7 @@ class _NoteListPageState extends State<NoteHomePage> {
     }
   }
 
-  void _deleteNote(int noteId) async {
+  void _deleteNote(String noteId) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -70,21 +94,25 @@ class _NoteListPageState extends State<NoteHomePage> {
           ),
           TextButton(
             onPressed: () async {
-              final result = await dbHelper.deleteItem(noteId);
               Navigator.pop(context);
 
-              if (result > 0) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Note deleted')));
+              try {
+                await firestoreHelper.deleteNote(noteId);
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Note deleted')));
+                }
                 _loadNotes();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Failed to delete note'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete note: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -92,6 +120,22 @@ class _NoteListPageState extends State<NoteHomePage> {
         ],
       ),
     );
+  }
+
+  void _togglePin(NoteModel note) async {
+    try {
+      await firestoreHelper.togglePin(note.noteId!, note.pinned);
+      _loadNotes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to toggle pin: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -112,8 +156,41 @@ class _NoteListPageState extends State<NoteHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Notes'), elevation: 0),
-      body: _notes.isEmpty ? _buildEmptyState() : _buildNoteList(),
+      appBar: AppBar(
+        title: const Text('My Notes'),
+        elevation: 0,
+        actions: [
+          // User email display
+          if (_currentUser != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  _currentUser!.email ?? 'User',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          // Sign out button
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign Out',
+            onPressed: () async {
+              await authHelper.signOutWithGoogle();
+              if (mounted) {
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/signin', (route) => false);
+              }
+            },
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _notes.isEmpty
+          ? _buildEmptyState()
+          : _buildNoteList(),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToCreateNote,
         tooltip: 'Create new note',
@@ -160,6 +237,13 @@ class _NoteListPageState extends State<NoteHomePage> {
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(16),
+            leading: IconButton(
+              icon: Icon(
+                note.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                color: note.pinned ? Colors.blue : Colors.grey,
+              ),
+              onPressed: () => _togglePin(note),
+            ),
             title: Text(
               note.title,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -183,7 +267,7 @@ class _NoteListPageState extends State<NoteHomePage> {
             ),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () => _deleteNote(note.noteId),
+              onPressed: () => _deleteNote(note.noteId!),
             ),
             onTap: () => _navigateToEditNote(note),
           ),
