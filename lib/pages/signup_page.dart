@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_note/auth_helper.dart';
 import 'package:flutter_note/firestore_user_helper.dart';
 import 'package:flutter_note/models/user_model.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -19,6 +20,7 @@ class _SignupPageState extends State<SignupPage> {
   TextEditingController psswdController = TextEditingController();
 
   bool passwordVisible = true;
+  bool _isLoading = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,9 +86,11 @@ class _SignupPageState extends State<SignupPage> {
                 ),
                 SizedBox.square(dimension: 16),
                 ElevatedButton(
-                  onPressed: () async {
-                    _register();
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          _register();
+                        },
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -95,7 +99,12 @@ class _SignupPageState extends State<SignupPage> {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Text('Signup'),
+                      child: _isLoading
+                          ? const SpinKitThreeBounce(
+                              color: Colors.white,
+                              size: 24,
+                            )
+                          : const Text('Signup'),
                     ),
                   ),
                 ),
@@ -121,6 +130,10 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future _register() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final result = await authHelper.signUpWithEmailAndPassword(
         emailController.text,
@@ -144,8 +157,14 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       _showSnackbar('Signup fail: ${e.message}');
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       _showSnackbar('Signup fail: $e');
     }
 
