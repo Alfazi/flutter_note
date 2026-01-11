@@ -4,6 +4,7 @@ import 'package:flutter_note/auth_helper.dart';
 import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
 import 'package:flutter_note/pages/note_editor_page.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class NoteHomePage extends StatefulWidget {
   const NoteHomePage({super.key});
@@ -187,7 +188,12 @@ class _NoteListPageState extends State<NoteHomePage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: SpinKitFadingCircle(
+                color: Theme.of(context).primaryColor,
+                size: 50.0,
+              ),
+            )
           : _notes.isEmpty
           ? _buildEmptyState()
           : _buildNoteList(),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_note/auth_helper.dart';
 import 'package:flutter_note/firestore_helper.dart';
 import 'package:flutter_note/models/note_model.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class NoteEditorPage extends StatefulWidget {
   final NoteModel? note;
@@ -237,13 +238,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                     child: ElevatedButton.icon(
                       onPressed: _isSaving ? null : _saveNote,
                       icon: _isSaving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                          ? const SpinKitThreeBounce(
+                              color: Colors.white,
+                              size: 16,
                             )
                           : const Icon(Icons.save),
                       label: Text(_isSaving ? 'Saving...' : 'Save'),
